@@ -37,7 +37,7 @@ classes = ['Type_1', 'Type_2', 'Type_3']
 
 
 # In[4]:
-
+"""
 # create training and validation set folders by splitting the
 # original 'train' folder
 
@@ -57,7 +57,7 @@ n_valid = [] # number of validation images per class
 for c in classes:
     source = os.path.join(original_path, c)
     
-  
+
     file_list = os.listdir(source)
     shuffle(file_list)
     
@@ -65,7 +65,7 @@ for c in classes:
     split_idx = int(len(file_list) * train_proportion)
     train_list = file_list[:split_idx]
     valid_list = file_list[split_idx:]
-    
+
     #split the original image folder if it is not already done
     train_type_path = os.path.join(train_path, c)
     valid_type_path = os.path.join(valid_path, c)
@@ -93,7 +93,18 @@ for c in classes:
 print("Number of original training images (per type):", n_origin)
 print("Number of split training images (per type):", n_train)
 print("Number of split validation images (per type):", n_valid)
+"""
 
+# get the number of images in each class
+n_train = []
+n_valid = []
+
+for c in classes:
+    n_train.append(len(os.listdir(os.path.join(train_path,c))))
+    n_valid.append(len(os.listdir(os.path.join(valid_path,c))))
+
+print("Number of split training images (per type):", n_train)
+print("Number of split validation images (per type):", n_valid)
 
 # In[6]:
 
@@ -103,6 +114,9 @@ img_height = 299
 img_width = 299
 n_epochs = 100
 batch_size = 16
+learning_rate = 0.0001
+momentum = 0.9
+decay = 0.0
 
 train_steps = sum(n_train) // batch_size
 
@@ -154,11 +168,18 @@ model = Model(inputs = inception_app.input,
 # In[11]:
 
 # compile the model with loss and optimizer
+"""
 optimizer = Adam(lr = 0.001,
                  beta_1 = 0.9,
                  beta_2 = 0.999,
                  epsilon = 1e-08,
                  decay = 0.0)
+"""
+
+optimizer = SGD(lr = learning_rate,
+                momentum = momentum,
+                decay = decay,
+                nesterov = True)
 
 model.compile(loss = 'categorical_crossentropy',
               optimizer = optimizer,
@@ -211,13 +232,13 @@ best_model = ModelCheckpoint(filepath = best_model_file,
 # In[ ]:
 
 # train the model
-model.load_weights('./weights.04-0.88.hdf5')
+#model.load_weights('./weights.04-0.88.hdf5')
 model.fit_generator(generator = train_batch_provider,
-                    steps_per_epoch = train_steps,
+                    steps_per_epoch = sum(n_train),
                     epochs  = n_epochs,
                     validation_data = valid_batch_provider,
-                    validation_steps = valid_steps,
+                    validation_steps = sum(n_valid),
                     callbacks = [best_model])
 
 
-# 
+
