@@ -112,9 +112,9 @@ print("Number of split validation images (per type):", n_valid)
 n_classes = len(classes)
 img_height = 299
 img_width = 299
-n_epochs = 100
+n_epochs = 20
 batch_size = 16
-learning_rate = 0.0001
+learning_rate = 0.00001
 momentum = 0.9
 decay = 0.0
 
