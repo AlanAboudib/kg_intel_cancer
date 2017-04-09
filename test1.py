@@ -1,4 +1,3 @@
-
 # coding: utf-8
 
 # In[1]:
@@ -10,10 +9,11 @@ import numpy as np
 from random import shuffle
 import keras
 from keras.applications.inception_v3 import InceptionV3
+from keras.applications.resnet50 import ResNet50
 from keras.preprocessing.image import ImageDataGenerator
 from keras.layers.core import Dense
 from keras.callbacks import ModelCheckpoint
-from keras.models import Model
+from keras.models import Model, load_model
 from keras.optimizers import Adam, SGD
 
 
@@ -37,7 +37,7 @@ classes = ['Type_1', 'Type_2', 'Type_3']
 
 
 # In[4]:
-"""
+
 # create training and validation set folders by splitting the
 # original 'train' folder
 
@@ -49,7 +49,7 @@ if not os.path.isdir(valid_path):
     os.mkdir(valid_path)
 
 # proportion of the split training set relative to the original training images
-train_proportion = 0.8
+train_proportion = 0.9
 n_origin = [] # number of original train images per class
 n_train = [] # number of split train images per class
 n_valid = [] # number of validation images per class
@@ -78,12 +78,14 @@ for c in classes:
 
         #copy files in new folders
         for im_name in train_list:
-            shutil.copy(os.path.join(source, im_name),
-                        os.path.join(train_path, c))
+            os.symlink(os.path.relpath(os.path.join(source, im_name),
+                                       os.path.join(train_path, c) ),
+                        os.path.join(train_path, c, im_name))
 
         for im_name in valid_list:
-            shutil.copy(os.path.join(source, im_name),
-                        os.path.join(valid_path, c))
+            os.symlink(os.path.relpath(os.path.join(source, im_name),
+                                       os.path.join(valid_path, c)),
+                        os.path.join(valid_path, c, im_name))
         
     # sizes of different image sets
     n_origin.append(len(file_list))
@@ -93,7 +95,7 @@ for c in classes:
 print("Number of original training images (per type):", n_origin)
 print("Number of split training images (per type):", n_train)
 print("Number of split validation images (per type):", n_valid)
-"""
+
 
 # get the number of images in each class
 n_train = []
@@ -112,9 +114,9 @@ print("Number of split validation images (per type):", n_valid)
 n_classes = len(classes)
 img_height = 299
 img_width = 299
-n_epochs = 20
+n_epochs = 50
 batch_size = 16
-learning_rate = 0.00001
+learning_rate = 0.0001
 momentum = 0.9
 decay = 0.0
 
@@ -168,19 +170,19 @@ model = Model(inputs = inception_app.input,
 # In[11]:
 
 # compile the model with loss and optimizer
-"""
+
 optimizer = Adam(lr = 0.001,
                  beta_1 = 0.9,
                  beta_2 = 0.999,
                  epsilon = 1e-08,
                  decay = 0.0)
-"""
 
+"""
 optimizer = SGD(lr = learning_rate,
                 momentum = momentum,
                 decay = decay,
                 nesterov = True)
-
+"""
 model.compile(loss = 'categorical_crossentropy',
               optimizer = optimizer,
               metrics = ['accuracy'])
@@ -202,19 +204,19 @@ train_batch_provider = train_gen.flow_from_directory(directory = train_path,
                                                      target_size = (img_height, img_width),
                                                      classes = classes,
                                                      class_mode = "categorical",
-                                                     batch_size = batch_size)
-                                                     #save_to_dir = aug_path,
-                                                     #save_prefix = "aug")
+                                                     batch_size = batch_size,
+                                                     follow_links = True)
                                                      
 
 # define validation data generators
 test_gen = ImageDataGenerator(rescale = 1.0/255)
 
 valid_batch_provider = test_gen.flow_from_directory(directory = valid_path,
-                                                     target_size = (img_height, img_width),
-                                                     classes = classes,
-                                                     class_mode = "categorical",
-                                                     batch_size = batch_size)
+                                                    target_size = (img_height, img_width),
+                                                    classes = classes,
+                                                    class_mode = "categorical",
+                                                    batch_size = batch_size,
+                                                    follow_links = True)
 
 
 # In[13]:
@@ -232,7 +234,8 @@ best_model = ModelCheckpoint(filepath = best_model_file,
 # In[ ]:
 
 # train the model
-#model.load_weights('./weights.04-0.88.hdf5')
+#model = load_model('./weights.05-0.73.hdf5')
+
 model.fit_generator(generator = train_batch_provider,
                     steps_per_epoch = sum(n_train),
                     epochs  = n_epochs,
